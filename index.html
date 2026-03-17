@@ -1,0 +1,110 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI热点监控站</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-orbit"></div>
+  <div class="bg-grid"></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo-ring"></div>
+        <div class="brand-text">
+          <div class="brand-title">AI HOT</div>
+          <div class="brand-sub">热点监控</div>
+        </div>
+      </div>
+
+      <nav class="menu">
+        <button class="menu-item active">
+          <span class="dot"></span>
+          热点资讯
+        </button>
+        <button class="menu-item">低热爆文</button>
+        <button class="menu-item">X监控</button>
+        <button class="menu-item">收藏</button>
+        <div class="menu-sep"></div>
+        <button class="menu-item">系统</button>
+        <button class="menu-item">精选策略</button>
+        <button class="menu-item">策略迭代</button>
+        <button class="menu-item">用户</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="ghost">退出</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="hero">
+        <div>
+          <h1>热点资讯</h1>
+          <p>精选：AI 自动挑选的高价值内容 · 本页 40 条</p>
+        </div>
+        <div class="hero-actions">
+          <button id="btnFeatured" class="chip active">精选</button>
+          <button id="btnAll" class="chip">全部</button>
+          <button id="btnX" class="chip">X 热点</button>
+          <button class="chip subtle">P1</button>
+        </div>
+      </header>
+
+      <section class="search">
+        <div class="search-box">
+          <input id="searchInput" type="text" placeholder="搜索标题/摘要..." />
+          <button id="filterBtn" class="primary">筛选</button>
+        </div>
+        <div class="search-meta">更新时间：<span id="updateTime">--</span></div>
+      </section>
+
+      <section id="strategyView" class="strategy view-section is-hidden">
+        <div class="strategy-header">
+          <div>
+            <h2>策略迭代</h2>
+            <p>通过人类反馈训练兴趣偏好，驱动精选更贴合你的口味。</p>
+          </div>
+          <div class="strategy-actions">
+            <button id="iterateBtn" class="primary">开始迭代</button>
+            <button id="resetBtn" class="chip subtle">重置偏好</button>
+          </div>
+        </div>
+        <div class="strategy-stats">
+          <div class="stat-card">
+            <div class="stat-title">总反馈</div>
+            <div id="statTotal" class="stat-value">0</div>
+            <div class="stat-sub">累计样本</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">赞同</div>
+            <div id="statLike" class="stat-value accent">0</div>
+            <div class="stat-sub">偏好确认</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">反对</div>
+            <div id="statDislike" class="stat-value warn">0</div>
+            <div class="stat-sub">排除方向</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">偏好关键词</div>
+            <div id="statKeys" class="stat-value small">—</div>
+            <div class="stat-sub">动态更新</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="feedView" class="feed view-section"></section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+

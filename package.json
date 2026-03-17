@@ -1,0 +1,11 @@
+﻿{
+  "name": "ai-hot",
+  "private": true,
+  "scripts": {
+    "dev": "node server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "rss-parser": "^3.13.0"
+  }
+}
