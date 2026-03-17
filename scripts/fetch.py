@@ -150,14 +150,17 @@ def parse_feed_with_retry(client: httpx.Client, url: str):
 def insert_article(row: dict) -> bool:
     """
     Returns True if row inserted, False if skipped by conflict.
-    Requires database unique keys on url_hash and content_hash.
+    Uses database unique keys on url_hash/content_hash for dedupe.
     """
-    resp = (
-        supabase.table("articles")
-        .upsert(row, on_conflict="url_hash,content_hash", ignore_duplicates=True)
-        .execute()
-    )
-    return bool(resp.data)
+    try:
+        supabase.table("articles").insert(row).execute()
+        return True
+    except Exception as err:
+        text = str(err).lower()
+        # Postgres unique violation (23505) -> treat as deduped.
+        if "23505" in text or "duplicate key value" in text or "unique constraint" in text:
+            return False
+        raise
 
 
 def fetch_and_store():
