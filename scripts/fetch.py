@@ -46,6 +46,10 @@ REQUEST_TIMEOUT_SECONDS = max(1.0, env_float("FETCH_TIMEOUT_SECONDS", 15.0))
 MAX_RETRIES = max(1, env_int("FETCH_RETRIES", 3))
 RETRY_BACKOFF_SECONDS = max(0.1, env_float("FETCH_BACKOFF_SECONDS", 1.2))
 PER_FEED_LIMIT = max(1, env_int("PER_FEED_LIMIT", 20))
+AI_BASE_URL = (os.environ.get("AI_BASE_URL") or "https://dashscope.aliyuncs.com/compatible-mode/v1").rstrip("/")
+AI_MODEL = os.environ.get("AI_MODEL") or "codingplan"
+AI_API_KEY = os.environ.get("AI_API_KEY") or ""
+AI_TIMEOUT_SECONDS = max(5.0, env_float("AI_TIMEOUT_SECONDS", 30.0))
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -147,6 +151,51 @@ def parse_feed_with_retry(client: httpx.Client, url: str):
     raise RuntimeError(f"fetch failed after {MAX_RETRIES} retries: {last_error}")
 
 
+def summarize_zh_with_ai(client: httpx.Client, title: str, summary_raw: str) -> str:
+    if not AI_API_KEY:
+        return ""
+
+    prompt = (
+        "请用中文输出3句话总结这篇AI资讯："
+        "第1句说明是什么，第2句说明为什么重要，第3句说明可能影响。"
+        "要求简洁、信息密度高，不要使用项目符号。\n\n"
+        f"标题：{title}\n"
+        f"正文片段：{summary_raw[:1200]}"
+    )
+    try:
+        resp = client.post(
+            f"{AI_BASE_URL}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {AI_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": AI_MODEL,
+                "temperature": 0.2,
+                "max_tokens": 220,
+                "messages": [
+                    {"role": "system", "content": "你是中文科技编辑，擅长压缩资讯要点。"},
+                    {"role": "user", "content": prompt},
+                ],
+            },
+            timeout=AI_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        content = (
+            data.get("choices", [{}])[0]
+            .get("message", {})
+            .get("content", "")
+        )
+        if isinstance(content, list):
+            content = " ".join(
+                chunk.get("text", "") for chunk in content if isinstance(chunk, dict)
+            )
+        return normalize_text(str(content))
+    except Exception:
+        return ""
+
+
 def insert_article(row: dict) -> bool:
     """
     Returns True if row inserted, False if skipped by conflict.
@@ -197,16 +246,18 @@ def fetch_and_store():
 
                 title = normalize_text(getattr(entry, "title", "") or "")
                 summary_raw = normalize_text(getattr(entry, "summary", "") or "")[:1200]
+                summary_zh = summarize_zh_with_ai(client, title, summary_raw)
                 row = {
                     "url_hash": url_hash(url),
                     "content_hash": content_hash(title, summary_raw),
                     "url": url,
                     "title": title,
                     "summary_raw": summary_raw,
+                    "summary_zh": summary_zh,
                     "source": feed_cfg["source"],
                     "lang": feed_cfg["lang"],
                     "category": guess_category(title, summary_raw),
-                    "status": "pending",  # pending | processed | skipped
+                    "status": "processed" if summary_zh else "pending",  # pending | processed | skipped
                     "published_at": parse_date(entry),
                 }
 
