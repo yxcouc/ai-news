@@ -50,6 +50,7 @@ AI_BASE_URL = (os.environ.get("AI_BASE_URL") or "https://dashscope.aliyuncs.com/
 AI_MODEL = os.environ.get("AI_MODEL") or "codingplan"
 AI_API_KEY = os.environ.get("AI_API_KEY") or ""
 AI_TIMEOUT_SECONDS = max(5.0, env_float("AI_TIMEOUT_SECONDS", 30.0))
+AI_MAX_ITEMS_PER_RUN = max(0, env_int("AI_MAX_ITEMS_PER_RUN", 30))
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -212,6 +213,12 @@ def insert_article(row: dict) -> bool:
         raise
 
 
+def update_article_summary(url_hash_value: str, summary_zh: str) -> None:
+    supabase.table("articles").update(
+        {"summary_zh": summary_zh, "status": "processed"}
+    ).eq("url_hash", url_hash_value).execute()
+
+
 def fetch_and_store():
     stats = {
         "feeds_total": len(FEEDS),
@@ -221,6 +228,9 @@ def fetch_and_store():
         "inserted": 0,
         "deduped": 0,
         "insert_errors": 0,
+        "ai_attempted": 0,
+        "ai_success": 0,
+        "ai_errors": 0,
     }
     started_at = time.time()
 
@@ -246,18 +256,17 @@ def fetch_and_store():
 
                 title = normalize_text(getattr(entry, "title", "") or "")
                 summary_raw = normalize_text(getattr(entry, "summary", "") or "")[:1200]
-                summary_zh = summarize_zh_with_ai(client, title, summary_raw)
                 row = {
                     "url_hash": url_hash(url),
                     "content_hash": content_hash(title, summary_raw),
                     "url": url,
                     "title": title,
                     "summary_raw": summary_raw,
-                    "summary_zh": summary_zh,
+                    "summary_zh": "",
                     "source": feed_cfg["source"],
                     "lang": feed_cfg["lang"],
                     "category": guess_category(title, summary_raw),
-                    "status": "processed" if summary_zh else "pending",  # pending | processed | skipped
+                    "status": "pending",  # pending | processed | skipped
                     "published_at": parse_date(entry),
                 }
 
@@ -265,6 +274,16 @@ def fetch_and_store():
                     inserted = insert_article(row)
                     if inserted:
                         stats["inserted"] += 1
+                        if AI_API_KEY and stats["ai_attempted"] < AI_MAX_ITEMS_PER_RUN:
+                            stats["ai_attempted"] += 1
+                            summary_zh = summarize_zh_with_ai(client, title, summary_raw)
+                            if summary_zh:
+                                try:
+                                    update_article_summary(row["url_hash"], summary_zh)
+                                    stats["ai_success"] += 1
+                                except Exception as err:
+                                    stats["ai_errors"] += 1
+                                    print(f"  x AI update error: {err}")
                         print(f"  + {title[:80]}")
                     else:
                         stats["deduped"] += 1
@@ -279,6 +298,9 @@ def fetch_and_store():
     print(f"Inserted:    {stats['inserted']}")
     print(f"Deduped:     {stats['deduped']}")
     print(f"Insert errs: {stats['insert_errors']}")
+    print(f"AI attempts: {stats['ai_attempted']}")
+    print(f"AI success:  {stats['ai_success']}")
+    print(f"AI errors:   {stats['ai_errors']}")
     print(f"Elapsed:     {elapsed}s")
 
 
