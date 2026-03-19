@@ -183,17 +183,33 @@ def summarize_zh_with_ai(client: httpx.Client, title: str, summary_raw: str) -> 
         )
         resp.raise_for_status()
         data = resp.json()
-        content = (
-            data.get("choices", [{}])[0]
-            .get("message", {})
-            .get("content", "")
-        )
-        if isinstance(content, list):
-            content = " ".join(
-                chunk.get("text", "") for chunk in content if isinstance(chunk, dict)
-            )
-        return normalize_text(str(content))
-    except Exception:
+        content = ""
+
+        # OpenAI-compatible common format
+        choices = data.get("choices") or []
+        if choices:
+            message = choices[0].get("message", {}) if isinstance(choices[0], dict) else {}
+            raw_content = message.get("content", "")
+            if isinstance(raw_content, list):
+                content = " ".join(
+                    chunk.get("text", "")
+                    for chunk in raw_content
+                    if isinstance(chunk, dict)
+                )
+            else:
+                content = str(raw_content or "")
+
+        # Some providers may return top-level output text fields
+        if not content:
+            content = str(data.get("output_text") or data.get("text") or "")
+
+        normalized = normalize_text(content)
+        if not normalized:
+            snippet = str(data)[:400].replace("\n", " ")
+            print(f"  ! AI empty response: {snippet}")
+        return normalized
+    except Exception as err:
+        print(f"  x AI call error: {err}")
         return ""
 
 
@@ -231,6 +247,7 @@ def fetch_and_store():
         "ai_attempted": 0,
         "ai_success": 0,
         "ai_errors": 0,
+        "ai_empty": 0,
     }
     started_at = time.time()
 
@@ -284,6 +301,8 @@ def fetch_and_store():
                                 except Exception as err:
                                     stats["ai_errors"] += 1
                                     print(f"  x AI update error: {err}")
+                            else:
+                                stats["ai_empty"] += 1
                         print(f"  + {title[:80]}")
                     else:
                         stats["deduped"] += 1
@@ -301,6 +320,7 @@ def fetch_and_store():
     print(f"AI attempts: {stats['ai_attempted']}")
     print(f"AI success:  {stats['ai_success']}")
     print(f"AI errors:   {stats['ai_errors']}")
+    print(f"AI empty:    {stats['ai_empty']}")
     print(f"Elapsed:     {elapsed}s")
 
 

@@ -75,8 +75,9 @@ const loadArticles = async (maxRows = 300) => {
     .select(
       "id,url,url_hash,title,summary_raw,summary_zh,category,source,lang,published_at,created_at,importance"
     )
-    .order("importance", { ascending: false, nullsFirst: false })
     .order("published_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false, nullsFirst: false })
+    .order("importance", { ascending: false, nullsFirst: false })
     .limit(maxRows);
 
   if (error) throw error;

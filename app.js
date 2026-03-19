@@ -1,4 +1,4 @@
-﻿const DEFAULT_DATA = [
+const DEFAULT_DATA = [
   {
     date: "3月15日",
     time: "19:51",
@@ -221,7 +221,13 @@ const render = () => {
       const matchesFeatured = !state.featuredOnly || item.featured;
       return matchesQuery && matchesFeatured;
     })
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => {
+      const ta = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+      const tb = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+      // Latest first, keep score as secondary sort.
+      if (tb !== ta) return tb - ta;
+      return (b.score || 0) - (a.score || 0);
+    });
 
   feedView.innerHTML = "";
   formatGroups(filtered).forEach(([date, items]) => {
