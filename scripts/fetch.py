@@ -46,11 +46,13 @@ REQUEST_TIMEOUT_SECONDS = max(1.0, env_float("FETCH_TIMEOUT_SECONDS", 15.0))
 MAX_RETRIES = max(1, env_int("FETCH_RETRIES", 3))
 RETRY_BACKOFF_SECONDS = max(0.1, env_float("FETCH_BACKOFF_SECONDS", 1.2))
 PER_FEED_LIMIT = max(1, env_int("PER_FEED_LIMIT", 20))
-AI_BASE_URL = (os.environ.get("AI_BASE_URL") or "https://dashscope.aliyuncs.com/compatible-mode/v1").rstrip("/")
-AI_MODEL = os.environ.get("AI_MODEL") or "codingplan"
+AI_BASE_URL = (os.environ.get("AI_BASE_URL") or "https://coding.dashscope.aliyuncs.com/v1").rstrip("/")
+AI_MODEL = os.environ.get("AI_MODEL") or "qwen3.5-plus"
 AI_API_KEY = os.environ.get("AI_API_KEY") or ""
 AI_TIMEOUT_SECONDS = max(5.0, env_float("AI_TIMEOUT_SECONDS", 30.0))
 AI_MAX_ITEMS_PER_RUN = max(0, env_int("AI_MAX_ITEMS_PER_RUN", 30))
+AI_RETRIES = max(1, env_int("AI_RETRIES", 2))
+AI_RETRY_BACKOFF_SECONDS = max(0.2, env_float("AI_RETRY_BACKOFF_SECONDS", 1.5))
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -152,7 +154,7 @@ def parse_feed_with_retry(client: httpx.Client, url: str):
     raise RuntimeError(f"fetch failed after {MAX_RETRIES} retries: {last_error}")
 
 
-def summarize_zh_with_ai(client: httpx.Client, title: str, summary_raw: str) -> str:
+def summarize_zh_with_ai(client: httpx.Client, title: str, summary_raw: str):
     if not AI_API_KEY:
         return ""
 
@@ -163,54 +165,62 @@ def summarize_zh_with_ai(client: httpx.Client, title: str, summary_raw: str) -> 
         f"标题：{title}\n"
         f"正文片段：{summary_raw[:1200]}"
     )
-    try:
-        resp = client.post(
-            f"{AI_BASE_URL}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {AI_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": AI_MODEL,
-                "temperature": 0.2,
-                "max_tokens": 220,
-                "messages": [
-                    {"role": "system", "content": "你是中文科技编辑，擅长压缩资讯要点。"},
-                    {"role": "user", "content": prompt},
-                ],
-            },
-            timeout=AI_TIMEOUT_SECONDS,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        content = ""
+    last_error = None
+    for attempt in range(1, AI_RETRIES + 1):
+        try:
+            resp = client.post(
+                f"{AI_BASE_URL}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {AI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": AI_MODEL,
+                    "temperature": 0.2,
+                    "max_tokens": 220,
+                    "messages": [
+                        {"role": "system", "content": "你是中文科技编辑，擅长压缩资讯要点。"},
+                        {"role": "user", "content": prompt},
+                    ],
+                },
+                timeout=httpx.Timeout(AI_TIMEOUT_SECONDS, connect=10.0),
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            content = ""
 
-        # OpenAI-compatible common format
-        choices = data.get("choices") or []
-        if choices:
-            message = choices[0].get("message", {}) if isinstance(choices[0], dict) else {}
-            raw_content = message.get("content", "")
-            if isinstance(raw_content, list):
-                content = " ".join(
-                    chunk.get("text", "")
-                    for chunk in raw_content
-                    if isinstance(chunk, dict)
-                )
-            else:
-                content = str(raw_content or "")
+            # OpenAI-compatible common format
+            choices = data.get("choices") or []
+            if choices:
+                message = choices[0].get("message", {}) if isinstance(choices[0], dict) else {}
+                raw_content = message.get("content", "")
+                if isinstance(raw_content, list):
+                    content = " ".join(
+                        chunk.get("text", "")
+                        for chunk in raw_content
+                        if isinstance(chunk, dict)
+                    )
+                else:
+                    content = str(raw_content or "")
 
-        # Some providers may return top-level output text fields
-        if not content:
-            content = str(data.get("output_text") or data.get("text") or "")
+            # Some providers may return top-level output text fields
+            if not content:
+                content = str(data.get("output_text") or data.get("text") or "")
 
-        normalized = normalize_text(content)
-        if not normalized:
-            snippet = str(data)[:400].replace("\n", " ")
-            print(f"  ! AI empty response: {snippet}")
-        return normalized
-    except Exception as err:
-        print(f"  x AI call error: {err}")
-        return ""
+            normalized = normalize_text(content)
+            if not normalized:
+                snippet = str(data)[:400].replace("\n", " ")
+                print(f"  ! AI empty response: {snippet}")
+                return "", False
+            return normalized, False
+        except Exception as err:
+            last_error = err
+            if attempt < AI_RETRIES:
+                time.sleep(AI_RETRY_BACKOFF_SECONDS * attempt)
+            continue
+
+    print(f"  x AI call error after retries: {last_error}")
+    return "", True
 
 
 def insert_article(row: dict) -> bool:
@@ -293,7 +303,7 @@ def fetch_and_store():
                         stats["inserted"] += 1
                         if AI_API_KEY and stats["ai_attempted"] < AI_MAX_ITEMS_PER_RUN:
                             stats["ai_attempted"] += 1
-                            summary_zh = summarize_zh_with_ai(client, title, summary_raw)
+                            summary_zh, ai_failed = summarize_zh_with_ai(client, title, summary_raw)
                             if summary_zh:
                                 try:
                                     update_article_summary(row["url_hash"], summary_zh)
@@ -302,7 +312,10 @@ def fetch_and_store():
                                     stats["ai_errors"] += 1
                                     print(f"  x AI update error: {err}")
                             else:
-                                stats["ai_empty"] += 1
+                                if ai_failed:
+                                    stats["ai_errors"] += 1
+                                else:
+                                    stats["ai_empty"] += 1
                         print(f"  + {title[:80]}")
                     else:
                         stats["deduped"] += 1
