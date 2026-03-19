@@ -59,27 +59,36 @@ AI_INPUT_CHARS = max(200, env_int("AI_INPUT_CHARS", 700))
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 FEEDS: List[Dict[str, str]] = [
-    # Global official sources
-    {"url": "https://openai.com/blog/rss.xml", "source": "OpenAI", "lang": "en"},
-    {"url": "https://www.anthropic.com/rss.xml", "source": "Anthropic", "lang": "en"},
-    {"url": "https://deepmind.google/blog/rss.xml", "source": "DeepMind", "lang": "en"},
-    {"url": "https://ai.meta.com/blog/rss", "source": "Meta AI", "lang": "en"},
-    {"url": "https://mistral.ai/news/rss.xml", "source": "Mistral", "lang": "en"},
-    # Global media
-    {"url": "https://venturebeat.com/category/ai/feed/", "source": "VentureBeat", "lang": "en"},
+    # ── 海外 AI 厂商官方 ───────────────────────────────────────
+    {"url": "https://openai.com/blog/rss.xml",              "source": "OpenAI",        "lang": "en"},
+    {"url": "https://www.anthropic.com/rss.xml",            "source": "Anthropic",     "lang": "en"},
+    {"url": "https://deepmind.google/blog/rss.xml",         "source": "DeepMind",      "lang": "en"},
+    {"url": "https://ai.meta.com/blog/rss",                 "source": "Meta AI",       "lang": "en"},
+    {"url": "https://mistral.ai/news/rss.xml",              "source": "Mistral",       "lang": "en"},
+    {"url": "https://huggingface.co/blog/feed.xml",         "source": "HuggingFace",   "lang": "en"},
+    {"url": "https://blog.research.google/feeds/posts/default", "source": "Google AI Blog", "lang": "en"},
+    # ── 海外科技媒体 ────────────────────────────────────────────
+    {"url": "https://venturebeat.com/category/ai/feed/",   "source": "VentureBeat",   "lang": "en"},
     {"url": "https://techcrunch.com/category/artificial-intelligence/feed/", "source": "TechCrunch", "lang": "en"},
     {"url": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml", "source": "The Verge", "lang": "en"},
-    {"url": "https://news.ycombinator.com/rss", "source": "Hacker News", "lang": "en"},
-    # Academic
-    {"url": "https://arxiv.org/rss/cs.AI", "source": "arXiv cs.AI", "lang": "en"},
-    {"url": "https://arxiv.org/rss/cs.LG", "source": "arXiv cs.LG", "lang": "en"},
-    # CN via RSSHub
-    {"url": f"{RSSHUB_BASE}/jiqizhixin/articles", "source": "机器之心", "lang": "zh"},
-    {"url": f"{RSSHUB_BASE}/qbitai", "source": "量子位", "lang": "zh"},
-    {"url": f"{RSSHUB_BASE}/zhidongxi/article", "source": "智东西", "lang": "zh"},
-    {"url": "https://36kr.com/feed", "source": "36氪", "lang": "zh"},
-    # CN direct RSS
-    {"url": "https://www.jiqizhixin.com/rss", "source": "机器之心(直连)", "lang": "zh"},
+    {"url": "https://www.wired.com/feed/tag/artificial-intelligence/latest/rss", "source": "Wired AI", "lang": "en"},
+    {"url": "https://www.technologyreview.com/feed/",       "source": "MIT Tech Review","lang": "en"},
+    {"url": "https://news.ycombinator.com/rss",             "source": "Hacker News",   "lang": "en"},
+    # ── 学术 ──────────────────────────────────────────────────
+    {"url": "https://arxiv.org/rss/cs.AI",  "source": "arXiv cs.AI",  "lang": "en"},
+    {"url": "https://arxiv.org/rss/cs.LG",  "source": "arXiv cs.LG",  "lang": "en"},
+    {"url": "https://arxiv.org/rss/cs.CL",  "source": "arXiv cs.CL",  "lang": "en"},
+    # ── 国内媒体 (直接 RSS) ────────────────────────────────────
+    {"url": "https://36kr.com/feed",                        "source": "36氪",          "lang": "zh"},
+    {"url": "https://sspai.com/feed",                       "source": "少数派",         "lang": "zh"},
+    {"url": "https://www.infoq.cn/feed",                    "source": "InfoQ China",   "lang": "zh"},
+    {"url": "https://readhub.cn/rss",                       "source": "Readhub",       "lang": "zh"},
+    {"url": "https://aiera.com.cn/feed",                    "source": "新智元",         "lang": "zh"},
+    # ── 国内媒体 (via RSSHub，需配置 RSSHUB_BASE) ───────────────
+    {"url": f"{RSSHUB_BASE}/jiqizhixin/articles",           "source": "机器之心",       "lang": "zh"},
+    {"url": f"{RSSHUB_BASE}/qbitai",                        "source": "量子位",         "lang": "zh"},
+    {"url": f"{RSSHUB_BASE}/zhidongxi/article",             "source": "智东西",         "lang": "zh"},
+    {"url": f"{RSSHUB_BASE}/sspai/matrix",                  "source": "少数派Matrix",   "lang": "zh"},
 ]
 
 CATEGORY_KEYWORDS = {
