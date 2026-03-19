@@ -89,6 +89,23 @@ FEEDS: List[Dict[str, str]] = [
     {"url": f"{RSSHUB_BASE}/qbitai",                        "source": "量子位",         "lang": "zh"},
     {"url": f"{RSSHUB_BASE}/zhidongxi/article",             "source": "智东西",         "lang": "zh"},
     {"url": f"{RSSHUB_BASE}/sspai/matrix",                  "source": "少数派Matrix",   "lang": "zh"},
+    # ── 微信公众号 (via decemberpei.cyou/rssbox) ─────────────────
+    # AI/人工智能
+    {"url": "https://decemberpei.cyou/rssbox/wechat-jiqizhixin.xml",          "source": "机器之心(公众号)",     "lang": "zh"},
+    {"url": "https://decemberpei.cyou/rssbox/wechat-liangziwei.xml",          "source": "量子位(公众号)",       "lang": "zh"},
+    {"url": "https://decemberpei.cyou/rssbox/wechat-xinzhiyuan.xml",          "source": "新智元(公众号)",       "lang": "zh"},
+    {"url": "https://decemberpei.cyou/rssbox/wechat-shenkeji.xml",            "source": "DeepTech深科技",      "lang": "zh"},
+    {"url": "https://decemberpei.cyou/rssbox/wechat-paperweekly.xml",         "source": "PaperWeekly",         "lang": "zh"},
+    {"url": "https://decemberpei.cyou/rssbox/wechat-aiqianxian.xml",          "source": "AI前线",              "lang": "zh"},
+    {"url": "https://decemberpei.cyou/rssbox/wechat-xixiaoyaokejishuo.xml",   "source": "夕小瑶科技说",         "lang": "zh"},
+    {"url": "https://decemberpei.cyou/rssbox/wechat-haiwaidujiaoshou.xml",    "source": "海外独角兽",           "lang": "zh"},
+    {"url": "https://decemberpei.cyou/rssbox/wechat-jiaziguangnian.xml",      "source": "甲子光年",            "lang": "zh"},
+    {"url": "https://decemberpei.cyou/rssbox/wechat-jizhijvlebu.xml",         "source": "集智俱乐部",           "lang": "zh"},
+    # 科技媒体
+    {"url": "https://decemberpei.cyou/rssbox/wechat-jikegongyuan.xml",        "source": "极客公园",            "lang": "zh"},
+    {"url": "https://decemberpei.cyou/rssbox/wechat-githubdaily.xml",         "source": "GitHubDaily",         "lang": "zh"},
+    {"url": "https://decemberpei.cyou/rssbox/wechat-wandian.xml",             "source": "晚点LatePost",        "lang": "zh"},
+    {"url": "https://decemberpei.cyou/rssbox/wechat-36ke.xml",                "source": "36氪(公众号)",        "lang": "zh"},
 ]
 
 CATEGORY_KEYWORDS = {
