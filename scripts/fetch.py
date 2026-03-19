@@ -48,11 +48,13 @@ RETRY_BACKOFF_SECONDS = max(0.1, env_float("FETCH_BACKOFF_SECONDS", 1.2))
 PER_FEED_LIMIT = max(1, env_int("PER_FEED_LIMIT", 20))
 AI_BASE_URL = (os.environ.get("AI_BASE_URL") or "https://coding.dashscope.aliyuncs.com/v1").rstrip("/")
 AI_MODEL = os.environ.get("AI_MODEL") or "qwen3.5-plus"
+AI_FALLBACK_MODEL = os.environ.get("AI_FALLBACK_MODEL") or "qwen3-coder-plus"
 AI_API_KEY = os.environ.get("AI_API_KEY") or ""
 AI_TIMEOUT_SECONDS = max(5.0, env_float("AI_TIMEOUT_SECONDS", 30.0))
 AI_MAX_ITEMS_PER_RUN = max(0, env_int("AI_MAX_ITEMS_PER_RUN", 30))
 AI_RETRIES = max(1, env_int("AI_RETRIES", 2))
 AI_RETRY_BACKOFF_SECONDS = max(0.2, env_float("AI_RETRY_BACKOFF_SECONDS", 1.5))
+AI_INPUT_CHARS = max(200, env_int("AI_INPUT_CHARS", 700))
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -161,65 +163,75 @@ def summarize_zh_with_ai(client: httpx.Client, title: str, summary_raw: str):
     prompt = (
         "请用中文输出3句话总结这篇AI资讯："
         "第1句说明是什么，第2句说明为什么重要，第3句说明可能影响。"
-        "要求简洁、信息密度高，不要使用项目符号。\n\n"
+        "要求简洁、信息密度高，不要使用项目符号，每句不超过40字。\n\n"
         f"标题：{title}\n"
-        f"正文片段：{summary_raw[:1200]}"
+        f"正文片段：{summary_raw[:AI_INPUT_CHARS]}"
     )
     last_error = None
-    for attempt in range(1, AI_RETRIES + 1):
-        try:
-            resp = client.post(
-                f"{AI_BASE_URL}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {AI_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": AI_MODEL,
-                    "temperature": 0.2,
-                    "max_tokens": 220,
-                    "messages": [
-                        {"role": "system", "content": "你是中文科技编辑，擅长压缩资讯要点。"},
-                        {"role": "user", "content": prompt},
-                    ],
-                },
-                timeout=httpx.Timeout(AI_TIMEOUT_SECONDS, connect=10.0),
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            content = ""
+    models = [AI_MODEL]
+    if AI_FALLBACK_MODEL and AI_FALLBACK_MODEL != AI_MODEL:
+        models.append(AI_FALLBACK_MODEL)
 
-            # OpenAI-compatible common format
-            choices = data.get("choices") or []
-            if choices:
-                message = choices[0].get("message", {}) if isinstance(choices[0], dict) else {}
-                raw_content = message.get("content", "")
-                if isinstance(raw_content, list):
-                    content = " ".join(
-                        chunk.get("text", "")
-                        for chunk in raw_content
-                        if isinstance(chunk, dict)
-                    )
-                else:
-                    content = str(raw_content or "")
+    for model_name in models:
+        for attempt in range(1, AI_RETRIES + 1):
+            try:
+                resp = client.post(
+                    f"{AI_BASE_URL}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {AI_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": model_name,
+                        "temperature": 0.1,
+                        "max_tokens": 140,
+                        "messages": [
+                            {"role": "system", "content": "你是中文科技编辑，擅长压缩资讯要点。"},
+                            {"role": "user", "content": prompt},
+                        ],
+                    },
+                    timeout=httpx.Timeout(
+                        timeout=AI_TIMEOUT_SECONDS,
+                        connect=10.0,
+                        read=AI_TIMEOUT_SECONDS,
+                        write=20.0,
+                    ),
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                content = ""
 
-            # Some providers may return top-level output text fields
-            if not content:
-                content = str(data.get("output_text") or data.get("text") or "")
+                choices = data.get("choices") or []
+                if choices:
+                    message = choices[0].get("message", {}) if isinstance(choices[0], dict) else {}
+                    raw_content = message.get("content", "")
+                    if isinstance(raw_content, list):
+                        content = " ".join(
+                            chunk.get("text", "")
+                            for chunk in raw_content
+                            if isinstance(chunk, dict)
+                        )
+                    else:
+                        content = str(raw_content or "")
 
-            normalized = normalize_text(content)
-            if not normalized:
-                snippet = str(data)[:400].replace("\n", " ")
-                print(f"  ! AI empty response: {snippet}")
-                return "", False
-            return normalized, False
-        except Exception as err:
-            last_error = err
-            if attempt < AI_RETRIES:
-                time.sleep(AI_RETRY_BACKOFF_SECONDS * attempt)
-            continue
+                if not content:
+                    content = str(data.get("output_text") or data.get("text") or "")
 
-    print(f"  x AI call error after retries: {last_error}")
+                normalized = normalize_text(content)
+                if not normalized:
+                    snippet = str(data)[:400].replace("\n", " ")
+                    print(f"  ! AI empty response ({model_name}): {snippet}")
+                    return "", False
+                return normalized, False
+            except Exception as err:
+                last_error = err
+                if attempt < AI_RETRIES:
+                    time.sleep(AI_RETRY_BACKOFF_SECONDS * attempt)
+                continue
+
+        print(f"  ! AI model fallback: {model_name} failed, trying next")
+
+    print(f"  x AI call error after retries/models: {last_error}")
     return "", True
 
 

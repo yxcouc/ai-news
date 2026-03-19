@@ -38,6 +38,8 @@ jobs:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ vars.AI_BASE_URL }}
           AI_MODEL: ${{ vars.AI_MODEL }}
+          AI_FALLBACK_MODEL: ${{ vars.AI_FALLBACK_MODEL }}
+          AI_INPUT_CHARS: ${{ vars.AI_INPUT_CHARS }}
           AI_TIMEOUT_SECONDS: ${{ vars.AI_TIMEOUT_SECONDS }}
           AI_RETRIES: ${{ vars.AI_RETRIES }}
           AI_RETRY_BACKOFF_SECONDS: ${{ vars.AI_RETRY_BACKOFF_SECONDS }}
