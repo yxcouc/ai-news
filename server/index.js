@@ -20,6 +20,17 @@ const normalizeSummary = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const makeZhTitleFromSummary = (summary, source) => {
+  const text = normalizeSummary(summary);
+  if (!text) return "";
+  const firstSentence =
+    text.split(/(?<=[。！？!?])/)[0] ||
+    text.split(/[。！？!?，,]/)[0] ||
+    text;
+  const core = clampText(firstSentence.trim(), 26);
+  return core ? `【${source}】${core}` : "";
+};
+
 const inferRegion = (row) => {
   if ((row.source || "").toLowerCase().includes("x")) return "x";
   if (row.lang === "zh") return "cn";
@@ -33,7 +44,9 @@ const toHotItem = (row) => {
   const region = inferRegion(row);
   const sourceGroup = source;
   const category = row.category || "其他";
-  const cnTitle = hasChinese(title) ? title : clampText(`【${source}】${title}`, 32);
+  const cnTitle = hasChinese(title)
+    ? title
+    : makeZhTitleFromSummary(row.summary_zh, source) || clampText(`【${source}】${title}`, 32);
   const cnSubtitle = hasChinese(summary)
     ? clampText(summary, 80)
     : clampText(`主要信息：${summary || title}`, 80);
