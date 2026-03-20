@@ -47,9 +47,7 @@ const toHotItem = (row) => {
   const cnTitle = hasChinese(title)
     ? title
     : makeZhTitleFromSummary(row.summary_zh, source) || `【${source}】${title}`;
-  const cnSubtitle = hasChinese(summary)
-    ? clampText(summary, 80)
-    : clampText(`主要信息：${summary || title}`, 80);
+  const cnSubtitle = hasChinese(summary) ? summary : `主要信息：${summary || title}`;
 
   return {
     id: row.id || row.url_hash || row.url,
