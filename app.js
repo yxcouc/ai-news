@@ -102,8 +102,8 @@ const makeCnTitle = (item) => {
 
 const makeCnSubtitle = (item) => {
   if (item.cnSubtitle) return item.cnSubtitle;
-  if (hasChinese(item.summary)) return clampText(item.summary, 60);
-  return clampText(item.summary || item.title, 60);
+  if (hasChinese(item.summary)) return item.summary || "";
+  return item.summary ? `主要信息：${item.summary}` : item.title || "";
 };
 
 const extractKeywords = (text) => {
