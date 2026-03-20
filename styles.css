@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg: #0b0f1b;
   --bg-2: #0f1629;
   --panel: rgba(20, 28, 45, 0.82);
@@ -438,6 +438,8 @@ body {
 .card h3 a {
   color: inherit;
   text-decoration: none;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .card h3 a:hover {

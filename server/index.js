@@ -27,7 +27,7 @@ const makeZhTitleFromSummary = (summary, source) => {
     text.split(/(?<=[。！？!?])/)[0] ||
     text.split(/[。！？!?，,]/)[0] ||
     text;
-  const core = clampText(firstSentence.trim(), 26);
+  const core = firstSentence.trim();
   return core ? `【${source}】${core}` : "";
 };
 
@@ -46,7 +46,7 @@ const toHotItem = (row) => {
   const category = row.category || "其他";
   const cnTitle = hasChinese(title)
     ? title
-    : makeZhTitleFromSummary(row.summary_zh, source) || clampText(`【${source}】${title}`, 32);
+    : makeZhTitleFromSummary(row.summary_zh, source) || `【${source}】${title}`;
   const cnSubtitle = hasChinese(summary)
     ? clampText(summary, 80)
     : clampText(`主要信息：${summary || title}`, 80);
